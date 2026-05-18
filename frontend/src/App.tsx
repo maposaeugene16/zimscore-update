@@ -41,6 +41,7 @@ const App = () => (
             <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
             <Route path="/score" element={<ProtectedRoute><ScorePage /></ProtectedRoute>} />
             <Route path="/p2p" element={<ProtectedRoute><P2PLending /></ProtectedRoute>} />
+            <Route path="/collateral" element={<ProtectedRoute><Collateral /></ProtectedRoute>} />
             <Route path="/sme" element={<ProtectedRoute><SMEHub /></ProtectedRoute>} />
             <Route path="/crowdfunding" element={<ProtectedRoute><Crowdfunding /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminPortal /></ProtectedRoute>} />
