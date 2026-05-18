@@ -14,6 +14,179 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
+      bids: {
+        Row: {
+          amount: number
+          created_at: string
+          hold_ledger_id: string | null
+          id: string
+          interest_rate: number
+          lender_id: string
+          request_id: string
+          status: string
+          term_months: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          hold_ledger_id?: string | null
+          id?: string
+          interest_rate: number
+          lender_id: string
+          request_id: string
+          status?: string
+          term_months: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          hold_ledger_id?: string | null
+          id?: string
+          interest_rate?: number
+          lender_id?: string
+          request_id?: string
+          status?: string
+          term_months?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bids_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "loan_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          category: string | null
+          cover_image_url: string | null
+          created_at: string
+          deadline: string
+          description: string
+          entrepreneur_id: string
+          id: string
+          raised_amount: number
+          status: string
+          target_amount: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          deadline: string
+          description: string
+          entrepreneur_id: string
+          id?: string
+          raised_amount?: number
+          status?: string
+          target_amount: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          deadline?: string
+          description?: string
+          entrepreneur_id?: string
+          id?: string
+          raised_amount?: number
+          status?: string
+          target_amount?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      collateral_assets: {
+        Row: {
+          asset_type: string
+          created_at: string
+          description: string
+          estimated_value: number
+          id: string
+          photo_urls: Json
+          pledged_at: string | null
+          pledged_to_loan_id: string | null
+          released_at: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_type: string
+          created_at?: string
+          description: string
+          estimated_value: number
+          id?: string
+          photo_urls?: Json
+          pledged_at?: string | null
+          pledged_to_loan_id?: string | null
+          released_at?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_type?: string
+          created_at?: string
+          description?: string
+          estimated_value?: number
+          id?: string
+          photo_urls?: Json
+          pledged_at?: string | null
+          pledged_to_loan_id?: string | null
+          released_at?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       credit_documents: {
         Row: {
           confidence: number | null
@@ -149,6 +322,63 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          client_contact: string | null
+          client_name: string
+          created_at: string
+          due_date: string | null
+          id: string
+          invoice_number: string
+          line_items: Json
+          notes: string | null
+          paid_at: string | null
+          share_token: string | null
+          sme_user_id: string
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          client_contact?: string | null
+          client_name: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          line_items?: Json
+          notes?: string | null
+          paid_at?: string | null
+          share_token?: string | null
+          sme_user_id: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          client_contact?: string | null
+          client_name?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          line_items?: Json
+          notes?: string | null
+          paid_at?: string | null
+          share_token?: string | null
+          sme_user_id?: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       loan_applications: {
         Row: {
           amount: number
@@ -265,6 +495,152 @@ export type Database = {
           },
         ]
       }
+      loan_requests: {
+        Row: {
+          accepted_bid_id: string | null
+          amount: number
+          borrower_id: string
+          collateral_asset_id: string | null
+          created_at: string
+          id: string
+          max_interest_rate: number
+          purpose: string
+          status: string
+          term_months: number
+          updated_at: string
+        }
+        Insert: {
+          accepted_bid_id?: string | null
+          amount: number
+          borrower_id: string
+          collateral_asset_id?: string | null
+          created_at?: string
+          id?: string
+          max_interest_rate: number
+          purpose: string
+          status?: string
+          term_months: number
+          updated_at?: string
+        }
+        Update: {
+          accepted_bid_id?: string | null
+          amount?: number
+          borrower_id?: string
+          collateral_asset_id?: string | null
+          created_at?: string
+          id?: string
+          max_interest_rate?: number
+          purpose?: string
+          status?: string
+          term_months?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      manual_review_requests: {
+        Row: {
+          admin_id: string | null
+          admin_response: string | null
+          created_at: string
+          current_score: number | null
+          id: string
+          reason: string
+          resolved_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          admin_response?: string | null
+          created_at?: string
+          current_score?: number | null
+          id?: string
+          reason: string
+          resolved_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          admin_response?: string | null
+          created_at?: string
+          current_score?: number | null
+          id?: string
+          reason?: string
+          resolved_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          id: number
+          max_interest_rate_cap: number
+          max_loan_amount: number
+          min_loan_amount: number
+          updated_at: string
+          updated_by: string | null
+          withdrawal_fee_pct: number
+        }
+        Insert: {
+          id?: number
+          max_interest_rate_cap?: number
+          max_loan_amount?: number
+          min_loan_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+          withdrawal_fee_pct?: number
+        }
+        Update: {
+          id?: number
+          max_interest_rate_cap?: number
+          max_loan_amount?: number
+          min_loan_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+          withdrawal_fee_pct?: number
+        }
+        Relationships: []
+      }
+      pledges: {
+        Row: {
+          amount: number
+          campaign_id: string
+          created_at: string
+          escrow_ledger_id: string | null
+          id: string
+          investor_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          campaign_id: string
+          created_at?: string
+          escrow_ledger_id?: string | null
+          id?: string
+          investor_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          campaign_id?: string
+          created_at?: string
+          escrow_ledger_id?: string | null
+          id?: string
+          investor_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pledges_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -301,6 +677,210 @@ export type Database = {
         }
         Relationships: []
       }
+      quotations: {
+        Row: {
+          client_contact: string | null
+          client_name: string
+          created_at: string
+          id: string
+          line_items: Json
+          notes: string | null
+          quotation_number: string
+          share_token: string | null
+          sme_user_id: string
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          client_contact?: string | null
+          client_name: string
+          created_at?: string
+          id?: string
+          line_items?: Json
+          notes?: string | null
+          quotation_number: string
+          share_token?: string | null
+          sme_user_id: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          client_contact?: string | null
+          client_name?: string
+          created_at?: string
+          id?: string
+          line_items?: Json
+          notes?: string | null
+          quotation_number?: string
+          share_token?: string | null
+          sme_user_id?: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      repayment_schedule: {
+        Row: {
+          amount_due: number
+          amount_paid: number
+          created_at: string
+          due_date: string
+          id: string
+          loan_id: string
+          paid_at: string | null
+          reminder_24h_sent: boolean
+          reminder_48h_sent: boolean
+          source: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount_due: number
+          amount_paid?: number
+          created_at?: string
+          due_date: string
+          id?: string
+          loan_id: string
+          paid_at?: string | null
+          reminder_24h_sent?: boolean
+          reminder_48h_sent?: boolean
+          source: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount_due?: number
+          amount_paid?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          loan_id?: string
+          paid_at?: string | null
+          reminder_24h_sent?: boolean
+          reminder_48h_sent?: boolean
+          source?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      score_access_requests: {
+        Row: {
+          access_level: number
+          created_at: string
+          expires_at: string | null
+          id: string
+          purpose: string | null
+          requester_id: string | null
+          requester_label: string
+          responded_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          access_level: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          purpose?: string | null
+          requester_id?: string | null
+          requester_label: string
+          responded_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          purpose?: string | null
+          requester_id?: string | null
+          requester_label?: string
+          responded_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      score_share_links: {
+        Row: {
+          access_level: number
+          created_at: string
+          expires_at: string | null
+          id: string
+          recipient_label: string
+          revoked: boolean
+          token: string
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          access_level: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          recipient_label: string
+          revoked?: boolean
+          token: string
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          access_level?: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          recipient_label?: string
+          revoked?: boolean
+          token?: string
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: []
+      }
+      user_consents: {
+        Row: {
+          consent_type: string
+          granted: boolean
+          granted_at: string
+          id: string
+          revoked_at: string | null
+          user_id: string
+          version: string
+        }
+        Insert: {
+          consent_type: string
+          granted: boolean
+          granted_at?: string
+          id?: string
+          revoked_at?: string | null
+          user_id: string
+          version?: string
+        }
+        Update: {
+          consent_type?: string
+          granted?: boolean
+          granted_at?: string
+          id?: string
+          revoked_at?: string | null
+          user_id?: string
+          version?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -319,6 +899,146 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          id: string
+          low_balance_threshold: number | null
+          pin_hash: string | null
+          preferred_language: string
+          security_a1_hash: string | null
+          security_a2_hash: string | null
+          security_q1: string | null
+          security_q2: string | null
+          updated_at: string
+          user_id: string
+          wallet_frozen: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          low_balance_threshold?: number | null
+          pin_hash?: string | null
+          preferred_language?: string
+          security_a1_hash?: string | null
+          security_a2_hash?: string | null
+          security_q1?: string | null
+          security_q2?: string | null
+          updated_at?: string
+          user_id: string
+          wallet_frozen?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          low_balance_threshold?: number | null
+          pin_hash?: string | null
+          preferred_language?: string
+          security_a1_hash?: string | null
+          security_a2_hash?: string | null
+          security_q1?: string | null
+          security_q2?: string | null
+          updated_at?: string
+          user_id?: string
+          wallet_frozen?: boolean
+        }
+        Relationships: []
+      }
+      wallet_ledger: {
+        Row: {
+          amount: number
+          balance_after: number
+          counterparty_user_id: string | null
+          created_at: string
+          description: string
+          direction: string
+          entry_type: string
+          id: string
+          locked_after: number
+          metadata: Json | null
+          reference: string | null
+          related_bid_id: string | null
+          related_campaign_id: string | null
+          related_loan_id: string | null
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          counterparty_user_id?: string | null
+          created_at?: string
+          description: string
+          direction: string
+          entry_type: string
+          id?: string
+          locked_after: number
+          metadata?: Json | null
+          reference?: string | null
+          related_bid_id?: string | null
+          related_campaign_id?: string | null
+          related_loan_id?: string | null
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          counterparty_user_id?: string | null
+          created_at?: string
+          description?: string
+          direction?: string
+          entry_type?: string
+          id?: string
+          locked_after?: number
+          metadata?: Json | null
+          reference?: string | null
+          related_bid_id?: string | null
+          related_campaign_id?: string | null
+          related_loan_id?: string | null
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_ledger_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          currency: string
+          id: string
+          locked_balance: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          locked_balance?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          locked_balance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -330,6 +1050,31 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      log_audit: {
+        Args: {
+          _action: string
+          _metadata?: Json
+          _target_id: string
+          _target_type: string
+        }
+        Returns: string
+      }
+      post_ledger: {
+        Args: {
+          _amount: number
+          _bid_id?: string
+          _campaign_id?: string
+          _counterparty?: string
+          _description: string
+          _direction: string
+          _entry_type: string
+          _loan_id?: string
+          _metadata?: Json
+          _reference?: string
+          _user_id: string
+        }
+        Returns: string
       }
     }
     Enums: {
