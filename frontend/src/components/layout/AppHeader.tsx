@@ -1,6 +1,7 @@
 import { Menu, Bell, Search, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface AppHeaderProps {
   onMenuClick: () => void;
