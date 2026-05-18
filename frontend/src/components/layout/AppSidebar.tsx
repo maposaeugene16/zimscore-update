@@ -31,6 +31,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, isAdmin, fi } = useAuth();
+  const { t } = useTranslation();
   const showFI = !!fi; // show portal as soon as registered (page handles pending/rejected)
 
   const handleSignOut = async () => {
