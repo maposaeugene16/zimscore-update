@@ -40,6 +40,8 @@ export function AppHeader({ onMenuClick, title }: AppHeaderProps) {
           <input type="text" placeholder="Search..." className="bg-transparent text-sm outline-none w-40 placeholder:text-muted-foreground" />
         </div>
 
+        <LanguageSwitcher />
+
         <button
           onClick={() => navigate("/notifications")}
           className="relative p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
