@@ -1,6 +1,7 @@
 import { Menu, Bell, Search, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface AppHeaderProps {
   onMenuClick: () => void;
@@ -38,6 +39,8 @@ export function AppHeader({ onMenuClick, title }: AppHeaderProps) {
           <Search className="w-4 h-4 text-muted-foreground" />
           <input type="text" placeholder="Search..." className="bg-transparent text-sm outline-none w-40 placeholder:text-muted-foreground" />
         </div>
+
+        <LanguageSwitcher />
 
         <button
           onClick={() => navigate("/notifications")}

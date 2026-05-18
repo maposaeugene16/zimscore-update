@@ -1,23 +1,25 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Wallet, BarChart3, Users, Building2,
-  Rocket, Shield, LogOut, X, TrendingUp, Bell, Landmark, Smartphone, Briefcase
+  Rocket, Shield, LogOut, X, TrendingUp, Bell, Landmark, Smartphone, Briefcase, Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "react-i18next";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
-  { label: "Wallet", icon: Wallet, path: "/wallet" },
-  { label: "Credit Score", icon: BarChart3, path: "/score" },
-  { label: "P2P Lending", icon: Users, path: "/p2p" },
-  { label: "SME Hub", icon: Building2, path: "/sme" },
-  { label: "Crowdfunding", icon: Rocket, path: "/crowdfunding" },
-  { label: "MFI Marketplace", icon: Landmark, path: "/mfi" },
-  { label: "EcoCash Upload", icon: Smartphone, path: "/ecocash-upload" },
-  { label: "FI Portal", icon: Briefcase, path: "/fi", fiOnly: true },
-  { label: "Notifications", icon: Bell, path: "/notifications" },
-  { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
+  { labelKey: "nav.dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { labelKey: "nav.wallet", icon: Wallet, path: "/wallet" },
+  { labelKey: "nav.creditScore", icon: BarChart3, path: "/score" },
+  { labelKey: "nav.p2p", icon: Users, path: "/p2p" },
+  { labelKey: "nav.collateral", icon: Package, path: "/collateral" },
+  { labelKey: "nav.smeHub", icon: Building2, path: "/sme" },
+  { labelKey: "nav.crowdfunding", icon: Rocket, path: "/crowdfunding" },
+  { labelKey: "nav.marketplace", icon: Landmark, path: "/mfi" },
+  { labelKey: "nav.ecocashUpload", icon: Smartphone, path: "/ecocash-upload" },
+  { labelKey: "nav.fiPortal", icon: Briefcase, path: "/fi", fiOnly: true },
+  { labelKey: "nav.notifications", icon: Bell, path: "/notifications" },
+  { labelKey: "nav.admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
 interface AppSidebarProps {
@@ -29,6 +31,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, isAdmin, fi } = useAuth();
+  const { t } = useTranslation();
   const showFI = !!fi; // show portal as soon as registered (page handles pending/rejected)
 
   const handleSignOut = async () => {
@@ -83,7 +86,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                 )}
               >
                 <item.icon className={cn("w-5 h-5", active && "text-primary")} />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}
@@ -96,7 +99,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors w-full"
           >
             <LogOut className="w-5 h-5" />
-            Sign Out
+            {t("nav.signOut")}
           </button>
         </div>
       </aside>

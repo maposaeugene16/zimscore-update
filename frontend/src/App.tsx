@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import EcoCashUpload from "./pages/EcoCashUpload";
 import FIRegister from "./pages/FIRegister";
 import FIDashboard from "./pages/FIDashboard";
+import Collateral from "./pages/Collateral";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
             <Route path="/score" element={<ProtectedRoute><ScorePage /></ProtectedRoute>} />
             <Route path="/p2p" element={<ProtectedRoute><P2PLending /></ProtectedRoute>} />
+            <Route path="/collateral" element={<ProtectedRoute><Collateral /></ProtectedRoute>} />
             <Route path="/sme" element={<ProtectedRoute><SMEHub /></ProtectedRoute>} />
             <Route path="/crowdfunding" element={<ProtectedRoute><Crowdfunding /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminPortal /></ProtectedRoute>} />
