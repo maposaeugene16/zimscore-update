@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import EcoCashUpload from "./pages/EcoCashUpload";
 import FIRegister from "./pages/FIRegister";
 import FIDashboard from "./pages/FIDashboard";
+import Collateral from "./pages/Collateral";
 
 const queryClient = new QueryClient();
 
