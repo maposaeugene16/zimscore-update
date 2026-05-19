@@ -1044,6 +1044,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_bid: { Args: { _bid_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1057,6 +1058,16 @@ export type Database = {
           _metadata?: Json
           _target_id: string
           _target_type: string
+        }
+        Returns: string
+      }
+      mark_reminders_due: { Args: never; Returns: undefined }
+      place_bid: {
+        Args: {
+          _amount: number
+          _interest_rate: number
+          _request_id: string
+          _term_months: number
         }
         Returns: string
       }
@@ -1076,6 +1087,16 @@ export type Database = {
         }
         Returns: string
       }
+      repay_installment: { Args: { _schedule_id: string }; Returns: undefined }
+      wallet_deposit: {
+        Args: { _amount: number; _method: string; _reference?: string }
+        Returns: string
+      }
+      wallet_withdraw: {
+        Args: { _amount: number; _destination: string; _method: string }
+        Returns: string
+      }
+      withdraw_bid: { Args: { _bid_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "financial_institution"
