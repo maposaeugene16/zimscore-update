@@ -77,11 +77,12 @@ export default function P2PLending() {
 
   const loadAll = async () => {
     if (!user) return;
-    const [{ data: lreq }, { data: mb }, { data: ownReqBids }, { data: sched }] = await Promise.all([
+    const [{ data: lreq }, { data: mb }, { data: ownReqBids }, { data: sched }, { data: col }] = await Promise.all([
       supabase.from("loan_requests").select("*").in("status", ["open", "funded"]).order("created_at", { ascending: false }),
       supabase.from("bids").select("*").eq("lender_id", user.id).order("created_at", { ascending: false }),
       supabase.from("bids").select("*").order("created_at", { ascending: false }),
       supabase.from("repayment_schedule").select("*").eq("user_id", user.id).order("due_date", { ascending: true }),
+      supabase.from("collateral_assets").select("id, description, estimated_value, asset_type").eq("user_id", user.id).eq("status", "available"),
     ]);
     setLoans((lreq ?? []) as LoanRequest[]);
     setMyBids((mb ?? []) as Bid[]);
@@ -89,6 +90,7 @@ export default function P2PLending() {
     ((ownReqBids ?? []) as Bid[]).forEach(b => { (map[b.request_id] ||= []).push(b); });
     setBidsByRequest(map);
     setSchedule((sched ?? []) as ScheduleRow[]);
+    setAvailableCollateral((col ?? []) as any);
   };
 
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [user?.id]);
