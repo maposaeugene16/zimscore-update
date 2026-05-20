@@ -68,6 +68,8 @@ export default function P2PLending() {
   const [reqPurpose, setReqPurpose] = useState("");
   const [reqTermMonths, setReqTermMonths] = useState("3");
   const [reqMaxRate, setReqMaxRate] = useState("");
+  const [reqCollateralId, setReqCollateralId] = useState<string>("");
+  const [availableCollateral, setAvailableCollateral] = useState<{ id: string; description: string; estimated_value: number; asset_type: string }[]>([]);
 
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
