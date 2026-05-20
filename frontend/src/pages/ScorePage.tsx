@@ -4,10 +4,11 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 import { AppLayout } from "@/components/layout/AppLayout";
 import { CreditScoreGauge } from "@/components/dashboard/CreditScoreGauge";
 import { mockUser, monthlyScoreHistory, scoreTips, formatDate } from "@/lib/mock-data";
-import { TrendingUp, Lightbulb, Upload, FileText, CheckCircle, Info, AlertCircle, BarChart3, ShieldAlert } from "lucide-react";
+import { TrendingUp, Lightbulb, Upload, FileText, CheckCircle, Info, AlertCircle, BarChart3, ShieldAlert, Share2, Link as LinkIcon, X, Check, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -129,6 +130,55 @@ export default function ScorePage() {
 
   const [verifiedStatements, setVerifiedStatements] = useState<VerifiedStatement[]>([]);
   const [isLoadingScore, setIsLoadingScore] = useState(true);
+
+  // Score consent + share links
+  const [accessRequests, setAccessRequests] = useState<any[]>([]);
+  const [shareLinks, setShareLinks] = useState<any[]>([]);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLabel, setShareLabel] = useState("");
+  const [shareLevel, setShareLevel] = useState(1);
+  const [shareDays, setShareDays] = useState(30);
+
+  const loadSharing = async () => {
+    if (!user) return;
+    const [{ data: ar }, { data: sl }] = await Promise.all([
+      supabase.from("score_access_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("score_share_links").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    ]);
+    setAccessRequests(ar || []); setShareLinks(sl || []);
+  };
+  useEffect(() => { loadSharing(); /* eslint-disable-next-line */ }, [user?.id]);
+
+  const respondAccess = async (id: string, approve: boolean) => {
+    const { error } = await supabase.rpc("respond_score_access", { _request_id: id, _approve: approve });
+    if (error) { toast.error(error.message); return; }
+    toast.success(approve ? "Access approved" : "Access denied");
+    loadSharing();
+  };
+
+  const createShare = async () => {
+    if (!user || !shareLabel.trim()) { toast.error("Recipient label required"); return; }
+    const token = crypto.randomUUID().replace(/-/g, "");
+    const { error } = await supabase.from("score_share_links").insert({
+      user_id: user.id, token, recipient_label: shareLabel, access_level: shareLevel,
+      expires_at: new Date(Date.now() + shareDays * 86400000).toISOString(),
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Share link created");
+    setShareOpen(false); setShareLabel(""); loadSharing();
+  };
+
+  const revokeShare = async (id: string) => {
+    await supabase.from("score_share_links").update({ revoked: true }).eq("id", id);
+    toast.success("Link revoked"); loadSharing();
+  };
+
+  const copyShareLink = (token: string) => {
+    const url = `${window.location.origin}/shared-score/${token}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied");
+  };
+
 
   // Fetch verified documents from BOTH ecocash_statements and credit_documents
   useEffect(() => {
@@ -438,7 +488,84 @@ export default function ScorePage() {
             )}
           </div>
         </motion.div>
+
+        {/* Score Sharing & Consent */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-5 h-5 text-primary" />
+              <h3 className="font-display text-lg font-semibold">Score Sharing & Consent</h3>
+            </div>
+            <Button size="sm" onClick={() => setShareOpen(true)}><LinkIcon className="w-3 h-3 mr-2" /> New Share Link</Button>
+          </div>
+
+          {/* Pending access requests */}
+          {accessRequests.filter(r => r.status === "pending").length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-muted-foreground tracking-wide">Pending Requests</p>
+              {accessRequests.filter(r => r.status === "pending").map(r => (
+                <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/5 border border-accent/20">
+                  <div>
+                    <p className="text-sm font-medium">{r.requester_label} wants Level {r.access_level} access</p>
+                    <p className="text-xs text-muted-foreground">{r.purpose || "No reason provided"}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => respondAccess(r.id, false)}><X className="w-3 h-3 mr-1" /> Deny</Button>
+                    <Button size="sm" onClick={() => respondAccess(r.id, true)}><Check className="w-3 h-3 mr-1" /> Approve</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Active share links */}
+          <div className="space-y-2">
+            <p className="text-xs uppercase text-muted-foreground tracking-wide">Share Links</p>
+            {shareLinks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No share links yet. Create one to give a lender or employer a read-only view of your score.</p>
+            ) : shareLinks.map(l => (
+              <div key={l.id} className={`flex items-center justify-between p-3 rounded-lg border ${l.revoked ? "bg-secondary/30 border-border opacity-60" : "bg-secondary/30 border-border"}`}>
+                <div>
+                  <p className="text-sm font-medium">{l.recipient_label} <span className="text-xs text-muted-foreground">· Level {l.access_level} · {l.view_count} views</span></p>
+                  <p className="text-xs text-muted-foreground">{l.revoked ? "Revoked" : l.expires_at ? `Expires ${new Date(l.expires_at).toLocaleDateString("en-GB")}` : "No expiry"}</p>
+                </div>
+                <div className="flex gap-2">
+                  {!l.revoked && <>
+                    <Button size="sm" variant="outline" onClick={() => copyShareLink(l.token)}><Copy className="w-3 h-3 mr-1" /> Copy</Button>
+                    <Button size="sm" variant="ghost" onClick={() => revokeShare(l.id)}><Trash2 className="w-3 h-3" /></Button>
+                  </>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </div>
+
+      {/* Share link dialog */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create Score Share Link</DialogTitle><DialogDescription>Anyone with the link can view the selected score level until it expires.</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Recipient label</Label><Input value={shareLabel} onChange={e => setShareLabel(e.target.value)} placeholder="e.g. CABS Bank, Landlord" /></div>
+            <div className="space-y-2">
+              <Label>Access Level</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3].map(lv => (
+                  <button key={lv} onClick={() => setShareLevel(lv)} className={`p-2 rounded-lg text-xs font-medium border transition-colors ${shareLevel === lv ? "bg-primary text-primary-foreground border-primary" : "bg-secondary border-border text-muted-foreground"}`}>
+                    Level {lv}<br /><span className="text-[10px] opacity-70">{lv === 1 ? "Score + band" : lv === 2 ? "+ doc count" : "Full report"}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2"><Label>Expires in (days)</Label><Input type="number" value={shareDays} onChange={e => setShareDays(Number(e.target.value))} min={1} max={365} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareOpen(false)}>Cancel</Button>
+            <Button onClick={createShare}>Create Link</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Document Upload Dialog */}
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>

@@ -22,6 +22,7 @@ import EcoCashUpload from "./pages/EcoCashUpload";
 import FIRegister from "./pages/FIRegister";
 import FIDashboard from "./pages/FIDashboard";
 import Collateral from "./pages/Collateral";
+import SharedScore from "./pages/SharedScore";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/fi-register" element={<FIRegister />} />
+            <Route path="/shared-score/:token" element={<SharedScore />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
             <Route path="/score" element={<ProtectedRoute><ScorePage /></ProtectedRoute>} />

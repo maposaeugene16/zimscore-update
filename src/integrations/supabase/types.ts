@@ -1045,6 +1045,7 @@ export type Database = {
     }
     Functions: {
       accept_bid: { Args: { _bid_id: string }; Returns: undefined }
+      get_shared_score: { Args: { _token: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1071,6 +1072,10 @@ export type Database = {
         }
         Returns: string
       }
+      pledge_to_campaign: {
+        Args: { _amount: number; _campaign_id: string }
+        Returns: string
+      }
       post_ledger: {
         Args: {
           _amount: number
@@ -1087,7 +1092,16 @@ export type Database = {
         }
         Returns: string
       }
+      refund_campaign: { Args: { _campaign_id: string }; Returns: undefined }
+      release_campaign_funds: {
+        Args: { _campaign_id: string }
+        Returns: undefined
+      }
       repay_installment: { Args: { _schedule_id: string }; Returns: undefined }
+      respond_score_access: {
+        Args: { _approve: boolean; _request_id: string }
+        Returns: undefined
+      }
       wallet_deposit: {
         Args: { _amount: number; _method: string; _reference?: string }
         Returns: string

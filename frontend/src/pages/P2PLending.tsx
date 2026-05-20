@@ -68,6 +68,8 @@ export default function P2PLending() {
   const [reqPurpose, setReqPurpose] = useState("");
   const [reqTermMonths, setReqTermMonths] = useState("3");
   const [reqMaxRate, setReqMaxRate] = useState("");
+  const [reqCollateralId, setReqCollateralId] = useState<string>("");
+  const [availableCollateral, setAvailableCollateral] = useState<{ id: string; description: string; estimated_value: number; asset_type: string }[]>([]);
 
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
@@ -75,11 +77,12 @@ export default function P2PLending() {
 
   const loadAll = async () => {
     if (!user) return;
-    const [{ data: lreq }, { data: mb }, { data: ownReqBids }, { data: sched }] = await Promise.all([
+    const [{ data: lreq }, { data: mb }, { data: ownReqBids }, { data: sched }, { data: col }] = await Promise.all([
       supabase.from("loan_requests").select("*").in("status", ["open", "funded"]).order("created_at", { ascending: false }),
       supabase.from("bids").select("*").eq("lender_id", user.id).order("created_at", { ascending: false }),
       supabase.from("bids").select("*").order("created_at", { ascending: false }),
       supabase.from("repayment_schedule").select("*").eq("user_id", user.id).order("due_date", { ascending: true }),
+      supabase.from("collateral_assets").select("id, description, estimated_value, asset_type").eq("user_id", user.id).eq("status", "available"),
     ]);
     setLoans((lreq ?? []) as LoanRequest[]);
     setMyBids((mb ?? []) as Bid[]);
@@ -87,6 +90,7 @@ export default function P2PLending() {
     ((ownReqBids ?? []) as Bid[]).forEach(b => { (map[b.request_id] ||= []).push(b); });
     setBidsByRequest(map);
     setSchedule((sched ?? []) as ScheduleRow[]);
+    setAvailableCollateral((col ?? []) as any);
   };
 
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [user?.id]);
@@ -165,14 +169,15 @@ export default function P2PLending() {
       term_months: months,
       max_interest_rate: Number(reqMaxRate),
       status: "open",
+      collateral_asset_id: reqCollateralId || null,
     });
     if (error) {
       toast.error(error.message.includes("unique") ? "You already have an active loan request." : error.message);
       return;
     }
-    toast.success("Loan request created");
+    toast.success(reqCollateralId ? "Loan request created with collateral pledged" : "Loan request created");
     setCreateOpen(false);
-    setReqAmount(""); setReqPurpose(""); setReqTermMonths("3"); setReqMaxRate("");
+    setReqAmount(""); setReqPurpose(""); setReqTermMonths("3"); setReqMaxRate(""); setReqCollateralId("");
     loadAll();
   };
 
@@ -383,6 +388,18 @@ export default function P2PLending() {
                 <Label>Max Interest Rate (%)</Label>
                 <Input type="number" placeholder="e.g. 12" value={reqMaxRate} onChange={e => setReqMaxRate(e.target.value)} min={1} max={40} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Collateral (optional — boosts lender confidence)</Label>
+              <select value={reqCollateralId} onChange={e => setReqCollateralId(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">No collateral</option>
+                {availableCollateral.map(c => (
+                  <option key={c.id} value={c.id}>{c.asset_type} — {c.description.slice(0, 40)} (${Number(c.estimated_value).toLocaleString()})</option>
+                ))}
+              </select>
+              {availableCollateral.length === 0 && (
+                <p className="text-xs text-muted-foreground">No available assets. Register one in the Collateral page first.</p>
+              )}
             </div>
           </div>
           <DialogFooter>
