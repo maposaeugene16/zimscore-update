@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, FileText, DollarSign, BarChart3, Plus, Send, Download, TrendingUp, TrendingDown, QrCode, MapPin, Package, Receipt } from "lucide-react";
+import { Building2, FileText, DollarSign, Plus, Send, Download, TrendingUp, TrendingDown, QrCode, MapPin, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { formatCurrency, formatDate } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -10,80 +10,162 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import jsPDF from "jspdf";
 
-interface Invoice {
-  id: string; client: string; amount: number; status: "draft" | "sent" | "paid"; date: string; description: string;
-}
-interface SMETransaction {
-  id: string; type: "income" | "expense"; amount: number; category: string; description: string; date: string;
-}
+type LineItem = { description: string; qty: number; price: number };
+type Invoice = {
+  id: string; invoice_number: string; client_name: string; client_contact: string | null;
+  status: string; line_items: LineItem[]; subtotal: number; tax: number; total: number;
+  due_date: string | null; notes: string | null; paid_at: string | null; created_at: string;
+};
+type Quotation = {
+  id: string; quotation_number: string; client_name: string; client_contact: string | null;
+  status: string; line_items: LineItem[]; subtotal: number; tax: number; total: number;
+  valid_until: string | null; notes: string | null; created_at: string;
+};
 
-const txCategories = ["Customer Payment", "Stock Purchase", "Utility", "Rent", "Staff", "Other"];
-
-const mockSMETransactions: SMETransaction[] = [
-  { id: "s1", type: "income", amount: 450, category: "Customer Payment", description: "Retail sale - electronics", date: "2024-01-15" },
-  { id: "s2", type: "expense", amount: 280, category: "Stock Purchase", description: "Inventory restock", date: "2024-01-14" },
-  { id: "s3", type: "income", amount: 320, category: "Customer Payment", description: "Service fee - consulting", date: "2024-01-13" },
-  { id: "s4", type: "expense", amount: 150, category: "Utility", description: "Electricity bill", date: "2024-01-12" },
-  { id: "s5", type: "expense", amount: 500, category: "Rent", description: "Monthly shop rent", date: "2024-01-10" },
-  { id: "s6", type: "income", amount: 680, category: "Customer Payment", description: "Bulk order - hardware", date: "2024-01-08" },
-  { id: "s7", type: "expense", amount: 200, category: "Staff", description: "Part-time wages", date: "2024-01-07" },
-];
-
-const monthlyData = [
-  { month: "Aug", income: 1800, expenses: 1200 },
-  { month: "Sep", income: 2100, expenses: 1400 },
-  { month: "Oct", income: 1950, expenses: 1300 },
-  { month: "Nov", income: 2400, expenses: 1500 },
-  { month: "Dec", income: 2200, expenses: 1600 },
-  { month: "Jan", income: 2000, expenses: 1320 },
-];
+type DocType = "invoice" | "quotation";
 
 export default function SMEHub() {
-  const [mainTab, setMainTab] = useState("dashboard");
-  const [invoices, setInvoices] = useState<Invoice[]>([
-    { id: "INV-001", client: "Harare Supplies Co.", amount: 1200, status: "paid", date: "2024-01-10", description: "Office supplies delivery" },
-    { id: "INV-002", client: "Bulawayo Tech Ltd.", amount: 3500, status: "sent", date: "2024-01-12", description: "IT consulting services" },
-  ]);
-  const [smeTx] = useState<SMETransaction[]>(mockSMETransactions);
-  const [invClient, setInvClient] = useState(""); const [invAmount, setInvAmount] = useState(""); const [invDesc, setInvDesc] = useState("");
+  const { user } = useAuth();
+  const [mainTab, setMainTab] = useState("invoices");
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [bizName, setBizName] = useState("Moyo Electronics"); const [bizCategory, setBizCategory] = useState("Retail");
-  const [bizDesc, setBizDesc] = useState("Quality electronics and accessories in Harare CBD");
-  const [bizLocation, setBizLocation] = useState("Harare"); const [bizProducts, setBizProducts] = useState("Electronics, Accessories, Repairs");
   const [qrOpen, setQrOpen] = useState(false);
-  const [invoiceOpen, setInvoiceOpen] = useState(false);
 
-  const totalIncome = smeTx.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const totalExpenses = smeTx.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  const netCashFlow = totalIncome - totalExpenses;
+  const [bizName, setBizName] = useState("Moyo Electronics");
+  const [bizCategory, setBizCategory] = useState("Retail");
+  const [bizDesc, setBizDesc] = useState("Quality electronics and accessories in Harare CBD");
+  const [bizLocation, setBizLocation] = useState("Harare");
+  const [bizProducts, setBizProducts] = useState("Electronics, Accessories, Repairs");
 
-  // Expense categories breakdown
-  const expenseByCategory = txCategories.map(cat => ({
-    category: cat,
-    amount: smeTx.filter(t => t.type === "expense" && t.category === cat).reduce((s, t) => s + t.amount, 0),
-  })).filter(c => c.amount > 0);
+  const [docOpen, setDocOpen] = useState<DocType | null>(null);
+  const [docClient, setDocClient] = useState("");
+  const [docContact, setDocContact] = useState("");
+  const [docNotes, setDocNotes] = useState("");
+  const [docDueOrValid, setDocDueOrValid] = useState("");
+  const [docItems, setDocItems] = useState<LineItem[]>([{ description: "", qty: 1, price: 0 }]);
+  const [docTaxPct, setDocTaxPct] = useState("0");
 
-  const handleCreateInvoice = () => {
-    if (!invClient || !invAmount || !invDesc) { toast.error("Fill in all fields"); return; }
-    const newInv: Invoice = { id: `INV-${String(invoices.length + 1).padStart(3, "0")}`, client: invClient, amount: Number(invAmount), description: invDesc, status: "draft", date: new Date().toISOString().split("T")[0] };
-    setInvoices(prev => [newInv, ...prev]);
-    setInvClient(""); setInvAmount(""); setInvDesc("");
-    toast.success(`Invoice ${newInv.id} created`);
+  const load = async () => {
+    if (!user) return;
+    const [{ data: inv }, { data: qu }] = await Promise.all([
+      supabase.from("invoices").select("*").eq("sme_user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("quotations").select("*").eq("sme_user_id", user.id).order("created_at", { ascending: false }),
+    ]);
+    setInvoices((inv ?? []) as any);
+    setQuotations((qu ?? []) as any);
   };
 
-  const sendInvoice = (id: string) => { setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: "sent" } : inv)); toast.success(`Invoice ${id} sent`); };
-  const markPaid = (id: string) => { setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: "paid" } : inv)); toast.success(`Invoice ${id} paid`); };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user?.id]);
 
-  const exportCashFlow = () => {
-    const csv = ["Date,Description,Category,Type,Amount"].concat(smeTx.map(t => `${t.date},"${t.description}",${t.category},${t.type},${t.type === "income" ? "" : "-"}${t.amount}`)).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "cashflow_statement.csv"; a.click(); URL.revokeObjectURL(url);
-    toast.success("Cash flow statement exported");
+  const subtotal = docItems.reduce((s, i) => s + Number(i.qty) * Number(i.price), 0);
+  const tax = subtotal * (Number(docTaxPct) / 100);
+  const total = subtotal + tax;
+
+  const resetForm = () => {
+    setDocClient(""); setDocContact(""); setDocNotes(""); setDocDueOrValid("");
+    setDocItems([{ description: "", qty: 1, price: 0 }]); setDocTaxPct("0");
   };
 
-  const statusColors: Record<string, string> = { draft: "bg-muted text-muted-foreground", sent: "bg-accent/15 text-accent", paid: "bg-success/15 text-success" };
+  const saveDoc = async () => {
+    if (!user || !docOpen) return;
+    if (!docClient.trim() || docItems.some(i => !i.description.trim() || i.price <= 0)) {
+      toast.error("Fill in client and all line items");
+      return;
+    }
+    const num = `${docOpen === "invoice" ? "INV" : "QUO"}-${Date.now().toString().slice(-6)}`;
+    const payload: any = {
+      sme_user_id: user.id,
+      client_name: docClient,
+      client_contact: docContact || null,
+      line_items: docItems,
+      subtotal, tax, total,
+      notes: docNotes || null,
+    };
+    if (docOpen === "invoice") {
+      payload.invoice_number = num;
+      payload.due_date = docDueOrValid || null;
+      const { error } = await supabase.from("invoices").insert(payload);
+      if (error) { toast.error(error.message); return; }
+    } else {
+      payload.quotation_number = num;
+      payload.valid_until = docDueOrValid || null;
+      const { error } = await supabase.from("quotations").insert(payload);
+      if (error) { toast.error(error.message); return; }
+    }
+    toast.success(`${docOpen === "invoice" ? "Invoice" : "Quotation"} ${num} created`);
+    setDocOpen(null); resetForm(); load();
+  };
+
+  const updateInvoiceStatus = async (id: string, status: string) => {
+    const patch: any = { status };
+    if (status === "paid") patch.paid_at = new Date().toISOString();
+    const { error } = await supabase.from("invoices").update(patch).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Invoice marked ${status}`);
+    load();
+  };
+
+  const removeDoc = async (type: DocType, id: string) => {
+    const { error } = await supabase.from(type === "invoice" ? "invoices" : "quotations").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Deleted");
+    load();
+  };
+
+  const exportPdf = (doc: Invoice | Quotation, type: DocType) => {
+    const pdf = new jsPDF();
+    const num = (doc as any).invoice_number || (doc as any).quotation_number;
+    pdf.setFontSize(20); pdf.text(bizName, 20, 25);
+    pdf.setFontSize(10); pdf.setTextColor(120);
+    pdf.text(`${bizLocation} · ${bizCategory}`, 20, 32);
+
+    pdf.setFontSize(16); pdf.setTextColor(0);
+    pdf.text(type === "invoice" ? "INVOICE" : "QUOTATION", 150, 25);
+    pdf.setFontSize(10); pdf.text(`# ${num}`, 150, 32);
+    pdf.text(`Date: ${formatDate(doc.created_at)}`, 150, 38);
+    const dateLine = type === "invoice" ? (doc as Invoice).due_date : (doc as Quotation).valid_until;
+    if (dateLine) pdf.text(`${type === "invoice" ? "Due" : "Valid until"}: ${dateLine}`, 150, 44);
+
+    pdf.setFontSize(11); pdf.text("Bill To:", 20, 55);
+    pdf.setFontSize(10); pdf.text(doc.client_name, 20, 62);
+    if (doc.client_contact) pdf.text(doc.client_contact, 20, 68);
+
+    let y = 85;
+    pdf.setFontSize(10); pdf.setFillColor(230, 230, 230);
+    pdf.rect(20, y - 5, 170, 8, "F");
+    pdf.text("Description", 22, y); pdf.text("Qty", 130, y); pdf.text("Price", 150, y); pdf.text("Total", 175, y);
+    y += 8;
+    (doc.line_items as LineItem[]).forEach(li => {
+      pdf.text(String(li.description).slice(0, 60), 22, y);
+      pdf.text(String(li.qty), 130, y);
+      pdf.text(`$${Number(li.price).toFixed(2)}`, 150, y);
+      pdf.text(`$${(Number(li.qty) * Number(li.price)).toFixed(2)}`, 175, y);
+      y += 7;
+    });
+    y += 5;
+    pdf.text(`Subtotal: $${Number(doc.subtotal).toFixed(2)}`, 150, y); y += 6;
+    pdf.text(`Tax: $${Number(doc.tax).toFixed(2)}`, 150, y); y += 6;
+    pdf.setFontSize(12); pdf.text(`Total: $${Number(doc.total).toFixed(2)}`, 150, y);
+    if (doc.notes) { y += 12; pdf.setFontSize(9); pdf.setTextColor(120); pdf.text(`Notes: ${doc.notes}`, 20, y); }
+    pdf.save(`${num}.pdf`);
+  };
+
+  const totalRevenue = invoices.filter(i => i.status === "paid").reduce((s, i) => s + Number(i.total), 0);
+  const totalOutstanding = invoices.filter(i => i.status === "sent").reduce((s, i) => s + Number(i.total), 0);
+
+  const statusColors: Record<string, string> = {
+    draft: "bg-muted text-muted-foreground",
+    sent: "bg-accent/15 text-accent",
+    paid: "bg-success/15 text-success",
+    accepted: "bg-success/15 text-success",
+    rejected: "bg-destructive/15 text-destructive",
+    expired: "bg-muted text-muted-foreground",
+  };
 
   return (
     <AppLayout title="SME Hub">
@@ -99,13 +181,12 @@ export default function SMEHub() {
           </div>
         </div>
 
-        {/* Key Metrics - SME-FR-004 */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           {[
-            { label: "Revenue", value: formatCurrency(totalIncome), icon: TrendingUp, color: "text-success" },
-            { label: "Expenses", value: formatCurrency(totalExpenses), icon: TrendingDown, color: "text-destructive" },
-            { label: "Net Cash Flow", value: formatCurrency(netCashFlow), icon: DollarSign, color: netCashFlow > 0 ? "text-success" : "text-destructive" },
+            { label: "Revenue (paid)", value: formatCurrency(totalRevenue), icon: TrendingUp, color: "text-success" },
+            { label: "Outstanding", value: formatCurrency(totalOutstanding), icon: TrendingDown, color: "text-accent" },
             { label: "Invoices", value: invoices.length.toString(), icon: FileText, color: "text-primary" },
+            { label: "Quotations", value: quotations.length.toString(), icon: DollarSign, color: "text-primary" },
           ].map(s => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg bg-secondary ${s.color}`}><s.icon className="w-5 h-5" /></div>
@@ -116,117 +197,100 @@ export default function SMEHub() {
 
         <Tabs value={mainTab} onValueChange={setMainTab}>
           <TabsList>
-            <TabsTrigger value="dashboard">Cash Flow</TabsTrigger>
             <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            <TabsTrigger value="quotations">Quotations</TabsTrigger>
           </TabsList>
 
-          {/* Cash Flow Dashboard - SME-FR-004 */}
-          <TabsContent value="dashboard" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-display font-semibold">Income vs Expenses</h3>
-                  <Button size="sm" variant="outline" onClick={exportCashFlow}><Download className="w-3 h-3 mr-1" /> Export</Button>
-                </div>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={monthlyData}>
-                    <XAxis dataKey="month" stroke="hsl(215, 20%, 55%)" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="hsl(215, 20%, 55%)" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ background: "hsl(222, 40%, 10%)", border: "1px solid hsl(222, 30%, 18%)", borderRadius: "8px", color: "hsl(210, 40%, 96%)" }} />
-                    <Bar dataKey="income" fill="hsl(160, 84%, 39%)" radius={[4, 4, 0, 0]} name="Income" />
-                    <Bar dataKey="expenses" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} name="Expenses" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </motion.div>
-
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-6">
-                <h3 className="font-display font-semibold mb-4">3-Month Net Trend</h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={monthlyData.slice(-3)}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 18%)" />
-                    <XAxis dataKey="month" stroke="hsl(215, 20%, 55%)" fontSize={12} />
-                    <YAxis stroke="hsl(215, 20%, 55%)" fontSize={12} />
-                    <Tooltip contentStyle={{ background: "hsl(222, 40%, 10%)", border: "1px solid hsl(222, 30%, 18%)", borderRadius: "8px", color: "hsl(210, 40%, 96%)" }} />
-                    <Line type="monotone" dataKey="income" stroke="hsl(160, 84%, 39%)" strokeWidth={2} name="Income" />
-                    <Line type="monotone" dataKey="expenses" stroke="hsl(0, 84%, 60%)" strokeWidth={2} name="Expenses" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </motion.div>
-            </div>
-
-            {/* Top Expense Categories */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6">
-              <h3 className="font-display font-semibold mb-4">Top Expense Categories</h3>
-              <div className="space-y-3">
-                {expenseByCategory.sort((a, b) => b.amount - a.amount).map(cat => (
-                  <div key={cat.category} className="flex items-center gap-3">
-                    <span className="text-sm w-32 text-muted-foreground">{cat.category}</span>
-                    <div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
-                      <div className="h-full bg-destructive/50 rounded-full" style={{ width: `${(cat.amount / totalExpenses) * 100}%` }} />
-                    </div>
-                    <span className="text-sm font-semibold w-20 text-right">{formatCurrency(cat.amount)}</span>
+          <TabsContent value="invoices" className="space-y-3 mt-4">
+            <Button onClick={() => { setDocOpen("invoice"); resetForm(); }}><Plus className="w-4 h-4 mr-2" /> New Invoice</Button>
+            {invoices.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">No invoices yet.</p> :
+              invoices.map(inv => (
+                <div key={inv.id} className="p-4 rounded-lg bg-secondary/30 border border-border flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{inv.invoice_number} — {inv.client_name}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(inv.created_at)} {inv.due_date ? `· due ${inv.due_date}` : ""}</p>
                   </div>
-                ))}
-              </div>
-            </motion.div>
-          </TabsContent>
-
-          {/* Invoices - SME-FR-007 */}
-          <TabsContent value="invoices" className="space-y-4 mt-4">
-            <div className="glass-card p-6">
-              <h3 className="font-display font-semibold mb-4">Create Invoice</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Input placeholder="Client name" value={invClient} onChange={e => setInvClient(e.target.value)} />
-                <Input type="number" placeholder="Amount (USD)" value={invAmount} onChange={e => setInvAmount(e.target.value)} />
-                <Input placeholder="Description" value={invDesc} onChange={e => setInvDesc(e.target.value)} />
-              </div>
-              <Button onClick={handleCreateInvoice} className="mt-3"><Plus className="w-4 h-4 mr-2" /> Create Invoice</Button>
-            </div>
-            <div className="space-y-3">
-              {invoices.map(inv => (
-                <div key={inv.id} className="p-4 rounded-lg bg-secondary/30 border border-border flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-sm">{inv.id} — {inv.client}</p>
-                    <p className="text-xs text-muted-foreground">{inv.description} · {formatDate(inv.date)}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <p className="font-display font-bold">{formatCurrency(inv.amount)}</p>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[inv.status]}`}>{inv.status}</span>
-                    {inv.status === "draft" && <Button size="sm" variant="outline" onClick={() => sendInvoice(inv.id)}><Send className="w-3 h-3 mr-1" /> Send</Button>}
-                    {inv.status === "sent" && <Button size="sm" variant="outline" onClick={() => markPaid(inv.id)}>Mark Paid</Button>}
+                  <div className="flex items-center gap-2">
+                    <p className="font-display font-bold">{formatCurrency(Number(inv.total))}</p>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[inv.status] || "bg-secondary"}`}>{inv.status}</span>
+                    <Button size="sm" variant="outline" onClick={() => exportPdf(inv, "invoice")}><Download className="w-3 h-3 mr-1" /> PDF</Button>
+                    {inv.status === "draft" && <Button size="sm" variant="outline" onClick={() => updateInvoiceStatus(inv.id, "sent")}><Send className="w-3 h-3 mr-1" /> Send</Button>}
+                    {inv.status === "sent" && <Button size="sm" onClick={() => updateInvoiceStatus(inv.id, "paid")}>Mark Paid</Button>}
+                    <Button size="sm" variant="ghost" onClick={() => removeDoc("invoice", inv.id)}><Trash2 className="w-3 h-3" /></Button>
                   </div>
                 </div>
               ))}
-            </div>
           </TabsContent>
 
-          {/* Transactions - auto-categorised */}
-          <TabsContent value="transactions" className="space-y-3 mt-4">
-            {smeTx.map(tx => (
-              <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/40 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${tx.type === "income" ? "bg-success/15" : "bg-destructive/15"}`}>
-                    {tx.type === "income" ? <TrendingUp className="w-4 h-4 text-success" /> : <TrendingDown className="w-4 h-4 text-destructive" />}
+          <TabsContent value="quotations" className="space-y-3 mt-4">
+            <Button onClick={() => { setDocOpen("quotation"); resetForm(); }}><Plus className="w-4 h-4 mr-2" /> New Quotation</Button>
+            {quotations.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">No quotations yet.</p> :
+              quotations.map(q => (
+                <div key={q.id} className="p-4 rounded-lg bg-secondary/30 border border-border flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{q.quotation_number} — {q.client_name}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(q.created_at)} {q.valid_until ? `· valid until ${q.valid_until}` : ""}</p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{tx.description}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(tx.date)} · {tx.category}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-display font-bold">{formatCurrency(Number(q.total))}</p>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[q.status] || "bg-secondary"}`}>{q.status}</span>
+                    <Button size="sm" variant="outline" onClick={() => exportPdf(q, "quotation")}><Download className="w-3 h-3 mr-1" /> PDF</Button>
+                    <Button size="sm" variant="ghost" onClick={() => removeDoc("quotation", q.id)}><Trash2 className="w-3 h-3" /></Button>
                   </div>
                 </div>
-                <span className={`text-sm font-semibold ${tx.type === "income" ? "text-success" : "text-destructive"}`}>
-                  {tx.type === "income" ? "+" : "-"}{formatCurrency(tx.amount)}
-                </span>
-              </div>
-            ))}
+              ))}
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Business Profile - SME-FR-001 */}
+      {/* Create invoice / quotation dialog */}
+      <Dialog open={!!docOpen} onOpenChange={open => !open && setDocOpen(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{docOpen === "invoice" ? "New Invoice" : "New Quotation"}</DialogTitle>
+            <DialogDescription>{docOpen === "invoice" ? "Bill a client" : "Provide a quote"} — exports as a branded PDF.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Client Name</Label><Input value={docClient} onChange={e => setDocClient(e.target.value)} placeholder="Acme Co." /></div>
+              <div className="space-y-2"><Label>Client Contact</Label><Input value={docContact} onChange={e => setDocContact(e.target.value)} placeholder="email / phone" /></div>
+            </div>
+            <div className="space-y-2"><Label>{docOpen === "invoice" ? "Due Date" : "Valid Until"}</Label><Input type="date" value={docDueOrValid} onChange={e => setDocDueOrValid(e.target.value)} /></div>
+
+            <div className="space-y-2">
+              <Label>Line Items</Label>
+              {docItems.map((it, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2">
+                  <Input className="col-span-6" placeholder="Description" value={it.description}
+                    onChange={e => setDocItems(items => items.map((x, i) => i === idx ? { ...x, description: e.target.value } : x))} />
+                  <Input className="col-span-2" type="number" placeholder="Qty" value={it.qty}
+                    onChange={e => setDocItems(items => items.map((x, i) => i === idx ? { ...x, qty: Number(e.target.value) } : x))} />
+                  <Input className="col-span-3" type="number" placeholder="Price" value={it.price}
+                    onChange={e => setDocItems(items => items.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) } : x))} />
+                  <Button className="col-span-1" size="sm" variant="ghost" onClick={() => setDocItems(items => items.filter((_, i) => i !== idx))}><Trash2 className="w-3 h-3" /></Button>
+                </div>
+              ))}
+              <Button size="sm" variant="outline" onClick={() => setDocItems(items => [...items, { description: "", qty: 1, price: 0 }])}><Plus className="w-3 h-3 mr-1" /> Add line</Button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border">
+              <div className="space-y-2"><Label>Tax (%)</Label><Input type="number" value={docTaxPct} onChange={e => setDocTaxPct(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Subtotal</Label><Input value={subtotal.toFixed(2)} readOnly /></div>
+              <div className="space-y-2"><Label className="text-success">Total</Label><Input value={total.toFixed(2)} readOnly className="font-bold" /></div>
+            </div>
+
+            <div className="space-y-2"><Label>Notes</Label><Textarea value={docNotes} onChange={e => setDocNotes(e.target.value)} rows={2} placeholder="Payment terms, bank details..." /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDocOpen(null)}>Cancel</Button>
+            <Button onClick={saveDoc}>Save {docOpen === "invoice" ? "Invoice" : "Quotation"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Business Profile</DialogTitle><DialogDescription>Your SME profile feeds into your Zimscore.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Business Profile</DialogTitle><DialogDescription>Your SME profile.</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2"><Label>Business Name</Label><Input value={bizName} onChange={e => setBizName(e.target.value)} /></div>
             <div className="space-y-2"><Label>Category</Label>
@@ -245,16 +309,15 @@ export default function SMEHub() {
         </DialogContent>
       </Dialog>
 
-      {/* QR Payment - SME-FR-002 */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>QR Payment Link</DialogTitle><DialogDescription>Share this with customers to receive payments directly to your wallet.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>QR Payment Link</DialogTitle><DialogDescription>Share with customers to receive payments to your wallet.</DialogDescription></DialogHeader>
           <div className="flex flex-col items-center py-6">
             <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center">
               <QrCode className="w-32 h-32 text-black" />
             </div>
-            <p className="text-sm text-muted-foreground mt-4">Wallet: ZIM-WAL-MOYOEL-7742</p>
-            <Button variant="outline" className="mt-2" onClick={() => { navigator.clipboard.writeText("https://zimscore.app/pay/MOYOEL7742"); toast.success("Payment link copied"); }}>Copy Link</Button>
+            <p className="text-sm text-muted-foreground mt-4">Wallet: ZIM-WAL-{user?.id?.slice(0, 6).toUpperCase()}</p>
+            <Button variant="outline" className="mt-2" onClick={() => { navigator.clipboard.writeText(`https://zimscore.app/pay/${user?.id?.slice(0, 8)}`); toast.success("Payment link copied"); }}>Copy Link</Button>
           </div>
         </DialogContent>
       </Dialog>
