@@ -488,7 +488,84 @@ export default function ScorePage() {
             )}
           </div>
         </motion.div>
+
+        {/* Score Sharing & Consent */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-5 h-5 text-primary" />
+              <h3 className="font-display text-lg font-semibold">Score Sharing & Consent</h3>
+            </div>
+            <Button size="sm" onClick={() => setShareOpen(true)}><LinkIcon className="w-3 h-3 mr-2" /> New Share Link</Button>
+          </div>
+
+          {/* Pending access requests */}
+          {accessRequests.filter(r => r.status === "pending").length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs uppercase text-muted-foreground tracking-wide">Pending Requests</p>
+              {accessRequests.filter(r => r.status === "pending").map(r => (
+                <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-accent/5 border border-accent/20">
+                  <div>
+                    <p className="text-sm font-medium">{r.requester_label} wants Level {r.access_level} access</p>
+                    <p className="text-xs text-muted-foreground">{r.purpose || "No reason provided"}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => respondAccess(r.id, false)}><X className="w-3 h-3 mr-1" /> Deny</Button>
+                    <Button size="sm" onClick={() => respondAccess(r.id, true)}><Check className="w-3 h-3 mr-1" /> Approve</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Active share links */}
+          <div className="space-y-2">
+            <p className="text-xs uppercase text-muted-foreground tracking-wide">Share Links</p>
+            {shareLinks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No share links yet. Create one to give a lender or employer a read-only view of your score.</p>
+            ) : shareLinks.map(l => (
+              <div key={l.id} className={`flex items-center justify-between p-3 rounded-lg border ${l.revoked ? "bg-secondary/30 border-border opacity-60" : "bg-secondary/30 border-border"}`}>
+                <div>
+                  <p className="text-sm font-medium">{l.recipient_label} <span className="text-xs text-muted-foreground">· Level {l.access_level} · {l.view_count} views</span></p>
+                  <p className="text-xs text-muted-foreground">{l.revoked ? "Revoked" : l.expires_at ? `Expires ${new Date(l.expires_at).toLocaleDateString("en-GB")}` : "No expiry"}</p>
+                </div>
+                <div className="flex gap-2">
+                  {!l.revoked && <>
+                    <Button size="sm" variant="outline" onClick={() => copyShareLink(l.token)}><Copy className="w-3 h-3 mr-1" /> Copy</Button>
+                    <Button size="sm" variant="ghost" onClick={() => revokeShare(l.id)}><Trash2 className="w-3 h-3" /></Button>
+                  </>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </div>
+
+      {/* Share link dialog */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create Score Share Link</DialogTitle><DialogDescription>Anyone with the link can view the selected score level until it expires.</DialogDescription></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2"><Label>Recipient label</Label><Input value={shareLabel} onChange={e => setShareLabel(e.target.value)} placeholder="e.g. CABS Bank, Landlord" /></div>
+            <div className="space-y-2">
+              <Label>Access Level</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3].map(lv => (
+                  <button key={lv} onClick={() => setShareLevel(lv)} className={`p-2 rounded-lg text-xs font-medium border transition-colors ${shareLevel === lv ? "bg-primary text-primary-foreground border-primary" : "bg-secondary border-border text-muted-foreground"}`}>
+                    Level {lv}<br /><span className="text-[10px] opacity-70">{lv === 1 ? "Score + band" : lv === 2 ? "+ doc count" : "Full report"}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2"><Label>Expires in (days)</Label><Input type="number" value={shareDays} onChange={e => setShareDays(Number(e.target.value))} min={1} max={365} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareOpen(false)}>Cancel</Button>
+            <Button onClick={createShare}>Create Link</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Document Upload Dialog */}
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
