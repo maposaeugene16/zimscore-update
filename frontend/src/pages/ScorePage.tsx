@@ -4,10 +4,11 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 import { AppLayout } from "@/components/layout/AppLayout";
 import { CreditScoreGauge } from "@/components/dashboard/CreditScoreGauge";
 import { mockUser, monthlyScoreHistory, scoreTips, formatDate } from "@/lib/mock-data";
-import { TrendingUp, Lightbulb, Upload, FileText, CheckCircle, Info, AlertCircle, BarChart3, ShieldAlert } from "lucide-react";
+import { TrendingUp, Lightbulb, Upload, FileText, CheckCircle, Info, AlertCircle, BarChart3, ShieldAlert, Share2, Link as LinkIcon, X, Check, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
