@@ -389,6 +389,18 @@ export default function P2PLending() {
                 <Input type="number" placeholder="e.g. 12" value={reqMaxRate} onChange={e => setReqMaxRate(e.target.value)} min={1} max={40} />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Collateral (optional — boosts lender confidence)</Label>
+              <select value={reqCollateralId} onChange={e => setReqCollateralId(e.target.value)} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">No collateral</option>
+                {availableCollateral.map(c => (
+                  <option key={c.id} value={c.id}>{c.asset_type} — {c.description.slice(0, 40)} (${Number(c.estimated_value).toLocaleString()})</option>
+                ))}
+              </select>
+              {availableCollateral.length === 0 && (
+                <p className="text-xs text-muted-foreground">No available assets. Register one in the Collateral page first.</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
