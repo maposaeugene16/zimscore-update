@@ -169,14 +169,15 @@ export default function P2PLending() {
       term_months: months,
       max_interest_rate: Number(reqMaxRate),
       status: "open",
+      collateral_asset_id: reqCollateralId || null,
     });
     if (error) {
       toast.error(error.message.includes("unique") ? "You already have an active loan request." : error.message);
       return;
     }
-    toast.success("Loan request created");
+    toast.success(reqCollateralId ? "Loan request created with collateral pledged" : "Loan request created");
     setCreateOpen(false);
-    setReqAmount(""); setReqPurpose(""); setReqTermMonths("3"); setReqMaxRate("");
+    setReqAmount(""); setReqPurpose(""); setReqTermMonths("3"); setReqMaxRate(""); setReqCollateralId("");
     loadAll();
   };
 
