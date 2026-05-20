@@ -131,6 +131,55 @@ export default function ScorePage() {
   const [verifiedStatements, setVerifiedStatements] = useState<VerifiedStatement[]>([]);
   const [isLoadingScore, setIsLoadingScore] = useState(true);
 
+  // Score consent + share links
+  const [accessRequests, setAccessRequests] = useState<any[]>([]);
+  const [shareLinks, setShareLinks] = useState<any[]>([]);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLabel, setShareLabel] = useState("");
+  const [shareLevel, setShareLevel] = useState(1);
+  const [shareDays, setShareDays] = useState(30);
+
+  const loadSharing = async () => {
+    if (!user) return;
+    const [{ data: ar }, { data: sl }] = await Promise.all([
+      supabase.from("score_access_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("score_share_links").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    ]);
+    setAccessRequests(ar || []); setShareLinks(sl || []);
+  };
+  useEffect(() => { loadSharing(); /* eslint-disable-next-line */ }, [user?.id]);
+
+  const respondAccess = async (id: string, approve: boolean) => {
+    const { error } = await supabase.rpc("respond_score_access", { _request_id: id, _approve: approve });
+    if (error) { toast.error(error.message); return; }
+    toast.success(approve ? "Access approved" : "Access denied");
+    loadSharing();
+  };
+
+  const createShare = async () => {
+    if (!user || !shareLabel.trim()) { toast.error("Recipient label required"); return; }
+    const token = crypto.randomUUID().replace(/-/g, "");
+    const { error } = await supabase.from("score_share_links").insert({
+      user_id: user.id, token, recipient_label: shareLabel, access_level: shareLevel,
+      expires_at: new Date(Date.now() + shareDays * 86400000).toISOString(),
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Share link created");
+    setShareOpen(false); setShareLabel(""); loadSharing();
+  };
+
+  const revokeShare = async (id: string) => {
+    await supabase.from("score_share_links").update({ revoked: true }).eq("id", id);
+    toast.success("Link revoked"); loadSharing();
+  };
+
+  const copyShareLink = (token: string) => {
+    const url = `${window.location.origin}/shared-score/${token}`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied");
+  };
+
+
   // Fetch verified documents from BOTH ecocash_statements and credit_documents
   useEffect(() => {
     const fetchVerifiedDocs = async () => {
