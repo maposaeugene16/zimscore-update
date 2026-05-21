@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 export default function Dashboard() {
   const { profile, user } = useAuth();
@@ -86,6 +87,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout title="Dashboard">
+      <OnboardingTour />
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
