@@ -414,6 +414,107 @@ export default function AdminPortal() {
               <p className="text-sm text-muted-foreground text-center py-8">No suspicious activity detected.</p>
             )}
           </TabsContent>
+
+          {/* Disputes Queue */}
+          <TabsContent value="disputes" className="space-y-4 mt-4">
+            <div className="flex items-center gap-2"><Gavel className="w-5 h-5 text-primary" /><h3 className="font-display text-lg font-semibold">Dispute Queue</h3></div>
+            {disputes.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No disputes filed.</p>
+            ) : (
+              <div className="glass-card p-2 overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Subject</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead>
+                    <TableHead>Filed</TableHead><TableHead className="text-right">Action</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {disputes.map(d => (
+                      <TableRow key={d.id}>
+                        <TableCell>
+                          <p className="font-medium text-sm">{d.subject}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-md">{d.description}</p>
+                        </TableCell>
+                        <TableCell className="capitalize text-xs">{d.dispute_type}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${
+                            d.status === "resolved" ? "bg-success/15 text-success" :
+                            d.status === "investigating" ? "bg-primary/15 text-primary" :
+                            d.status === "closed" ? "bg-muted text-muted-foreground" :
+                            "bg-accent/15 text-accent"
+                          }`}>{d.status}</span>
+                        </TableCell>
+                        <TableCell className="text-xs">{new Date(d.created_at).toLocaleDateString("en-GB")}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" onClick={() => { setRespondDispute(d); setRespondText(d.admin_response || ""); setRespondStatus(d.status === "open" ? "investigating" : d.status); }}>
+                            Respond
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Audit Logs */}
+          <TabsContent value="audit" className="space-y-4 mt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2"><ScrollText className="w-5 h-5 text-primary" /><h3 className="font-display text-lg font-semibold">Audit Logs</h3></div>
+              <Input className="max-w-xs" placeholder="Filter by action…" value={auditFilter === "all" ? "" : auditFilter} onChange={e => setAuditFilter(e.target.value || "all")} />
+            </div>
+            <div className="glass-card p-2 overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Time</TableHead><TableHead>Actor</TableHead><TableHead>Role</TableHead>
+                  <TableHead>Action</TableHead><TableHead>Target</TableHead><TableHead>Metadata</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {auditLogs.filter(l => auditFilter === "all" || (l.action || "").toLowerCase().includes(auditFilter.toLowerCase())).slice(0, 100).map(l => (
+                    <TableRow key={l.id}>
+                      <TableCell className="text-xs whitespace-nowrap">{new Date(l.created_at).toLocaleString("en-GB")}</TableCell>
+                      <TableCell className="text-xs font-mono">{(l.actor_user_id || "—").slice(0, 8)}</TableCell>
+                      <TableCell className="text-xs capitalize">{l.actor_role}</TableCell>
+                      <TableCell className="text-xs font-medium">{l.action}</TableCell>
+                      <TableCell className="text-xs">{l.target_type}{l.target_id ? ` · ${l.target_id.slice(0,8)}` : ""}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-xs truncate">{l.metadata ? JSON.stringify(l.metadata) : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                  {auditLogs.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No audit entries yet.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          {/* Platform Settings */}
+          <TabsContent value="settings" className="space-y-4 mt-4">
+            <div className="flex items-center gap-2"><SettingsIcon className="w-5 h-5 text-primary" /><h3 className="font-display text-lg font-semibold">Platform Settings</h3></div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-6 space-y-4 max-w-2xl">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Min loan amount (USD)</Label>
+                  <Input type="number" value={sMin} onChange={e => setSMin(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Max loan amount (USD)</Label>
+                  <Input type="number" value={sMax} onChange={e => setSMax(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Withdrawal fee (0.01 = 1%)</Label>
+                  <Input type="number" step="0.001" value={sFee} onChange={e => setSFee(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Max interest rate cap (0.4 = 40%)</Label>
+                  <Input type="number" step="0.01" value={sCap} onChange={e => setSCap(e.target.value)} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">All P2P bids will be rejected if their rate exceeds the platform cap above the borrower's own maximum.</p>
+              <Button onClick={saveSettings} className="glow-primary">Save settings</Button>
+              {settings && <p className="text-xs text-muted-foreground">Last updated: {new Date(settings.updated_at).toLocaleString("en-GB")}</p>}
+            </motion.div>
+          </TabsContent>
         </Tabs>
       </div>
 
