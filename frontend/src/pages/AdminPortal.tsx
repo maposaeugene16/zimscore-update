@@ -159,13 +159,16 @@ export default function AdminPortal() {
     <AppLayout title="Admin Portal">
       <div className="max-w-6xl mx-auto space-y-6">
         <Tabs value={mainTab} onValueChange={setMainTab}>
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="overview">System Overview</TabsTrigger>
             <TabsTrigger value="kyc">KYC Verification</TabsTrigger>
             <TabsTrigger value="institutions">Financial Institutions {fis.filter(f => f.status === "pending").length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-accent text-accent-foreground">{fis.filter(f => f.status === "pending").length}</span>}</TabsTrigger>
             <TabsTrigger value="analytics">Credit Analytics</TabsTrigger>
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="disputes">Disputes {disputes.filter(d => d.status === "open").length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-destructive text-destructive-foreground">{disputes.filter(d => d.status === "open").length}</span>}</TabsTrigger>
+            <TabsTrigger value="audit">Audit Logs</TabsTrigger>
+            <TabsTrigger value="settings">Platform Settings</TabsTrigger>
           </TabsList>
 
           {/* System Overview - ADM-FR-001 */}
