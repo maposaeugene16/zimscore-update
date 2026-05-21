@@ -23,6 +23,7 @@ import FIRegister from "./pages/FIRegister";
 import FIDashboard from "./pages/FIDashboard";
 import Collateral from "./pages/Collateral";
 import SharedScore from "./pages/SharedScore";
+import Privacy from "./pages/Privacy";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/fi" element={<ProtectedRoute><FIDashboard /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/ecocash-upload" element={<ProtectedRoute><EcoCashUpload /></ProtectedRoute>} />
+            <Route path="/privacy" element={<ProtectedRoute><Privacy /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
