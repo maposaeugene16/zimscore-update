@@ -547,6 +547,38 @@ export default function AdminPortal() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Dispute Response Dialog */}
+      <Dialog open={!!respondDispute} onOpenChange={open => { if (!open) setRespondDispute(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{respondDispute?.subject}</DialogTitle>
+            <DialogDescription className="capitalize">{respondDispute?.dispute_type} dispute</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="p-3 rounded-lg bg-secondary/40 border border-border text-sm">{respondDispute?.description}</div>
+            <div className="space-y-1">
+              <Label>Status</Label>
+              <Select value={respondStatus} onValueChange={setRespondStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="investigating">Investigating</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Admin response</Label>
+              <Textarea rows={4} value={respondText} onChange={e => setRespondText(e.target.value)} placeholder="Explanation visible to complainant" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRespondDispute(null)}>Cancel</Button>
+            <Button onClick={submitDisputeResponse} className="glow-primary">Save response</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
