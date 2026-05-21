@@ -37,7 +37,54 @@ export default function AdminPortal() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [mainTab, setMainTab] = useState("overview");
 
-  useEffect(() => { fetchProfiles(); fetchFIs(); }, []);
+  // Phase 4 state
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditFilter, setAuditFilter] = useState("all");
+  const [disputes, setDisputes] = useState<any[]>([]);
+  const [respondDispute, setRespondDispute] = useState<any | null>(null);
+  const [respondText, setRespondText] = useState("");
+  const [respondStatus, setRespondStatus] = useState("resolved");
+  const [settings, setSettings] = useState<any>(null);
+  const [sMin, setSMin] = useState(""); const [sMax, setSMax] = useState("");
+  const [sFee, setSFee] = useState(""); const [sCap, setSCap] = useState("");
+
+  useEffect(() => { fetchProfiles(); fetchFIs(); fetchAudit(); fetchDisputes(); fetchSettings(); }, []);
+
+  const fetchAudit = async () => {
+    const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(200);
+    setAuditLogs(data || []);
+  };
+  const fetchDisputes = async () => {
+    const { data } = await supabase.from("disputes").select("*").order("created_at", { ascending: false });
+    setDisputes(data || []);
+  };
+  const fetchSettings = async () => {
+    const { data } = await supabase.from("platform_settings").select("*").eq("id", 1).maybeSingle();
+    if (data) {
+      setSettings(data);
+      setSMin(String(data.min_loan_amount)); setSMax(String(data.max_loan_amount));
+      setSFee(String(data.withdrawal_fee_pct)); setSCap(String(data.max_interest_rate_cap));
+    }
+  };
+  const saveSettings = async () => {
+    const { error } = await supabase.rpc("update_platform_settings", {
+      _min_loan: Number(sMin), _max_loan: Number(sMax),
+      _withdrawal_fee: Number(sFee), _rate_cap: Number(sCap),
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Platform settings saved");
+    fetchSettings(); fetchAudit();
+  };
+  const submitDisputeResponse = async () => {
+    if (!respondDispute) return;
+    const { error } = await supabase.rpc("resolve_dispute", {
+      _dispute_id: respondDispute.id, _status: respondStatus, _response: respondText,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Dispute updated");
+    setRespondDispute(null); setRespondText(""); setRespondStatus("resolved");
+    fetchDisputes(); fetchAudit();
+  };
 
   if (!isAdmin) {
     return (
