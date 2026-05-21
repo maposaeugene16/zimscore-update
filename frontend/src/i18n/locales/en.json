@@ -37,6 +37,7 @@
     "notifications": "Notifications",
     "admin": "Admin",
     "collateral": "Collateral",
+    "privacy": "Privacy & Data",
     "signOut": "Sign Out"
   },
   "auth": {

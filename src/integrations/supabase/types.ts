@@ -232,6 +232,54 @@ export type Database = {
         }
         Relationships: []
       }
+      disputes: {
+        Row: {
+          admin_response: string | null
+          complainant_id: string
+          created_at: string
+          description: string
+          dispute_type: string
+          id: string
+          related_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          respondent_id: string | null
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          admin_response?: string | null
+          complainant_id: string
+          created_at?: string
+          description: string
+          dispute_type: string
+          id?: string
+          related_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          respondent_id?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          admin_response?: string | null
+          complainant_id?: string
+          created_at?: string
+          description?: string
+          dispute_type?: string
+          id?: string
+          related_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          respondent_id?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ecocash_statements: {
         Row: {
           confidence: number | null
@@ -904,6 +952,7 @@ export type Database = {
           created_at: string
           id: string
           low_balance_threshold: number | null
+          onboarding_completed: boolean
           pin_hash: string | null
           preferred_language: string
           security_a1_hash: string | null
@@ -918,6 +967,7 @@ export type Database = {
           created_at?: string
           id?: string
           low_balance_threshold?: number | null
+          onboarding_completed?: boolean
           pin_hash?: string | null
           preferred_language?: string
           security_a1_hash?: string | null
@@ -932,6 +982,7 @@ export type Database = {
           created_at?: string
           id?: string
           low_balance_threshold?: number | null
+          onboarding_completed?: boolean
           pin_hash?: string | null
           preferred_language?: string
           security_a1_hash?: string | null
@@ -1045,6 +1096,8 @@ export type Database = {
     }
     Functions: {
       accept_bid: { Args: { _bid_id: string }; Returns: undefined }
+      delete_my_account: { Args: { _confirm: string }; Returns: undefined }
+      export_my_data: { Args: never; Returns: Json }
       get_shared_score: { Args: { _token: string }; Returns: Json }
       has_role: {
         Args: {
@@ -1092,14 +1145,37 @@ export type Database = {
         }
         Returns: string
       }
+      raise_dispute: {
+        Args: {
+          _description: string
+          _dispute_type: string
+          _related_id?: string
+          _respondent_id?: string
+          _subject: string
+        }
+        Returns: string
+      }
       refund_campaign: { Args: { _campaign_id: string }; Returns: undefined }
       release_campaign_funds: {
         Args: { _campaign_id: string }
         Returns: undefined
       }
       repay_installment: { Args: { _schedule_id: string }; Returns: undefined }
+      resolve_dispute: {
+        Args: { _dispute_id: string; _response: string; _status: string }
+        Returns: undefined
+      }
       respond_score_access: {
         Args: { _approve: boolean; _request_id: string }
+        Returns: undefined
+      }
+      update_platform_settings: {
+        Args: {
+          _max_loan: number
+          _min_loan: number
+          _rate_cap: number
+          _withdrawal_fee: number
+        }
         Returns: undefined
       }
       wallet_deposit: {

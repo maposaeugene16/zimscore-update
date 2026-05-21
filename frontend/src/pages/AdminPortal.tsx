@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Shield, Users, DollarSign, Activity, CheckCircle, XCircle, Eye, Loader2, AlertTriangle, BarChart3, TrendingUp, Ban, FileText, Download, ShieldAlert } from "lucide-react";
+import { Shield, Users, DollarSign, Activity, CheckCircle, XCircle, Eye, Loader2, AlertTriangle, BarChart3, TrendingUp, Ban, FileText, Download, ShieldAlert, ScrollText, Gavel, Settings as SettingsIcon } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { adminStats, formatCurrency } from "@/lib/mock-data";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,7 +37,54 @@ export default function AdminPortal() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [mainTab, setMainTab] = useState("overview");
 
-  useEffect(() => { fetchProfiles(); fetchFIs(); }, []);
+  // Phase 4 state
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditFilter, setAuditFilter] = useState("all");
+  const [disputes, setDisputes] = useState<any[]>([]);
+  const [respondDispute, setRespondDispute] = useState<any | null>(null);
+  const [respondText, setRespondText] = useState("");
+  const [respondStatus, setRespondStatus] = useState("resolved");
+  const [settings, setSettings] = useState<any>(null);
+  const [sMin, setSMin] = useState(""); const [sMax, setSMax] = useState("");
+  const [sFee, setSFee] = useState(""); const [sCap, setSCap] = useState("");
+
+  useEffect(() => { fetchProfiles(); fetchFIs(); fetchAudit(); fetchDisputes(); fetchSettings(); }, []);
+
+  const fetchAudit = async () => {
+    const { data } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(200);
+    setAuditLogs(data || []);
+  };
+  const fetchDisputes = async () => {
+    const { data } = await supabase.from("disputes").select("*").order("created_at", { ascending: false });
+    setDisputes(data || []);
+  };
+  const fetchSettings = async () => {
+    const { data } = await supabase.from("platform_settings").select("*").eq("id", 1).maybeSingle();
+    if (data) {
+      setSettings(data);
+      setSMin(String(data.min_loan_amount)); setSMax(String(data.max_loan_amount));
+      setSFee(String(data.withdrawal_fee_pct)); setSCap(String(data.max_interest_rate_cap));
+    }
+  };
+  const saveSettings = async () => {
+    const { error } = await supabase.rpc("update_platform_settings", {
+      _min_loan: Number(sMin), _max_loan: Number(sMax),
+      _withdrawal_fee: Number(sFee), _rate_cap: Number(sCap),
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Platform settings saved");
+    fetchSettings(); fetchAudit();
+  };
+  const submitDisputeResponse = async () => {
+    if (!respondDispute) return;
+    const { error } = await supabase.rpc("resolve_dispute", {
+      _dispute_id: respondDispute.id, _status: respondStatus, _response: respondText,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Dispute updated");
+    setRespondDispute(null); setRespondText(""); setRespondStatus("resolved");
+    fetchDisputes(); fetchAudit();
+  };
 
   if (!isAdmin) {
     return (
@@ -107,13 +159,16 @@ export default function AdminPortal() {
     <AppLayout title="Admin Portal">
       <div className="max-w-6xl mx-auto space-y-6">
         <Tabs value={mainTab} onValueChange={setMainTab}>
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="overview">System Overview</TabsTrigger>
             <TabsTrigger value="kyc">KYC Verification</TabsTrigger>
             <TabsTrigger value="institutions">Financial Institutions {fis.filter(f => f.status === "pending").length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-accent text-accent-foreground">{fis.filter(f => f.status === "pending").length}</span>}</TabsTrigger>
             <TabsTrigger value="analytics">Credit Analytics</TabsTrigger>
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="disputes">Disputes {disputes.filter(d => d.status === "open").length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-destructive text-destructive-foreground">{disputes.filter(d => d.status === "open").length}</span>}</TabsTrigger>
+            <TabsTrigger value="audit">Audit Logs</TabsTrigger>
+            <TabsTrigger value="settings">Platform Settings</TabsTrigger>
           </TabsList>
 
           {/* System Overview - ADM-FR-001 */}
@@ -359,6 +414,107 @@ export default function AdminPortal() {
               <p className="text-sm text-muted-foreground text-center py-8">No suspicious activity detected.</p>
             )}
           </TabsContent>
+
+          {/* Disputes Queue */}
+          <TabsContent value="disputes" className="space-y-4 mt-4">
+            <div className="flex items-center gap-2"><Gavel className="w-5 h-5 text-primary" /><h3 className="font-display text-lg font-semibold">Dispute Queue</h3></div>
+            {disputes.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No disputes filed.</p>
+            ) : (
+              <div className="glass-card p-2 overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Subject</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead>
+                    <TableHead>Filed</TableHead><TableHead className="text-right">Action</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {disputes.map(d => (
+                      <TableRow key={d.id}>
+                        <TableCell>
+                          <p className="font-medium text-sm">{d.subject}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-md">{d.description}</p>
+                        </TableCell>
+                        <TableCell className="capitalize text-xs">{d.dispute_type}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${
+                            d.status === "resolved" ? "bg-success/15 text-success" :
+                            d.status === "investigating" ? "bg-primary/15 text-primary" :
+                            d.status === "closed" ? "bg-muted text-muted-foreground" :
+                            "bg-accent/15 text-accent"
+                          }`}>{d.status}</span>
+                        </TableCell>
+                        <TableCell className="text-xs">{new Date(d.created_at).toLocaleDateString("en-GB")}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" onClick={() => { setRespondDispute(d); setRespondText(d.admin_response || ""); setRespondStatus(d.status === "open" ? "investigating" : d.status); }}>
+                            Respond
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Audit Logs */}
+          <TabsContent value="audit" className="space-y-4 mt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2"><ScrollText className="w-5 h-5 text-primary" /><h3 className="font-display text-lg font-semibold">Audit Logs</h3></div>
+              <Input className="max-w-xs" placeholder="Filter by action…" value={auditFilter === "all" ? "" : auditFilter} onChange={e => setAuditFilter(e.target.value || "all")} />
+            </div>
+            <div className="glass-card p-2 overflow-x-auto">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Time</TableHead><TableHead>Actor</TableHead><TableHead>Role</TableHead>
+                  <TableHead>Action</TableHead><TableHead>Target</TableHead><TableHead>Metadata</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {auditLogs.filter(l => auditFilter === "all" || (l.action || "").toLowerCase().includes(auditFilter.toLowerCase())).slice(0, 100).map(l => (
+                    <TableRow key={l.id}>
+                      <TableCell className="text-xs whitespace-nowrap">{new Date(l.created_at).toLocaleString("en-GB")}</TableCell>
+                      <TableCell className="text-xs font-mono">{(l.actor_user_id || "—").slice(0, 8)}</TableCell>
+                      <TableCell className="text-xs capitalize">{l.actor_role}</TableCell>
+                      <TableCell className="text-xs font-medium">{l.action}</TableCell>
+                      <TableCell className="text-xs">{l.target_type}{l.target_id ? ` · ${l.target_id.slice(0,8)}` : ""}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-xs truncate">{l.metadata ? JSON.stringify(l.metadata) : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                  {auditLogs.length === 0 && (
+                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No audit entries yet.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          {/* Platform Settings */}
+          <TabsContent value="settings" className="space-y-4 mt-4">
+            <div className="flex items-center gap-2"><SettingsIcon className="w-5 h-5 text-primary" /><h3 className="font-display text-lg font-semibold">Platform Settings</h3></div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-6 space-y-4 max-w-2xl">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Min loan amount (USD)</Label>
+                  <Input type="number" value={sMin} onChange={e => setSMin(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Max loan amount (USD)</Label>
+                  <Input type="number" value={sMax} onChange={e => setSMax(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Withdrawal fee (0.01 = 1%)</Label>
+                  <Input type="number" step="0.001" value={sFee} onChange={e => setSFee(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Max interest rate cap (0.4 = 40%)</Label>
+                  <Input type="number" step="0.01" value={sCap} onChange={e => setSCap(e.target.value)} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">All P2P bids will be rejected if their rate exceeds the platform cap above the borrower's own maximum.</p>
+              <Button onClick={saveSettings} className="glow-primary">Save settings</Button>
+              {settings && <p className="text-xs text-muted-foreground">Last updated: {new Date(settings.updated_at).toLocaleString("en-GB")}</p>}
+            </motion.div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -389,6 +545,38 @@ export default function AdminPortal() {
               <Button onClick={() => updateStatus(viewProfile.id, "verified")} className="glow-primary">Approve</Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dispute Response Dialog */}
+      <Dialog open={!!respondDispute} onOpenChange={open => { if (!open) setRespondDispute(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{respondDispute?.subject}</DialogTitle>
+            <DialogDescription className="capitalize">{respondDispute?.dispute_type} dispute</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="p-3 rounded-lg bg-secondary/40 border border-border text-sm">{respondDispute?.description}</div>
+            <div className="space-y-1">
+              <Label>Status</Label>
+              <Select value={respondStatus} onValueChange={setRespondStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="investigating">Investigating</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Admin response</Label>
+              <Textarea rows={4} value={respondText} onChange={e => setRespondText(e.target.value)} placeholder="Explanation visible to complainant" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRespondDispute(null)}>Cancel</Button>
+            <Button onClick={submitDisputeResponse} className="glow-primary">Save response</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppLayout>

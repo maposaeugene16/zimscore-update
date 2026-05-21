@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Wallet, BarChart3, Users, Building2,
-  Rocket, Shield, LogOut, X, TrendingUp, Bell, Landmark, Smartphone, Briefcase, Package
+  Rocket, Shield, LogOut, X, TrendingUp, Bell, Landmark, Smartphone, Briefcase, Package, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,7 @@ const navItems = [
   { labelKey: "nav.ecocashUpload", icon: Smartphone, path: "/ecocash-upload" },
   { labelKey: "nav.fiPortal", icon: Briefcase, path: "/fi", fiOnly: true },
   { labelKey: "nav.notifications", icon: Bell, path: "/notifications" },
+  { labelKey: "nav.privacy", icon: Lock, path: "/privacy" },
   { labelKey: "nav.admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
