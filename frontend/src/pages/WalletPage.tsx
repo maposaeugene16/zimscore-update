@@ -300,7 +300,7 @@ export default function WalletPage() {
       {/* Deposit */}
       <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Deposit Funds</DialogTitle><DialogDescription>Add money to your ZimScore wallet (mock rail)</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Deposit Funds</DialogTitle><DialogDescription>Add money to your ZimScore wallet</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Payment Method</Label>
@@ -311,6 +311,13 @@ export default function WalletPage() {
                 ))}
               </div>
             </div>
+            {method === "ecocash" && (
+              <div className="space-y-2">
+                <Label>EcoCash Phone Number</Label>
+                <Input placeholder="077X XXX XXXX" value={accountRef} onChange={e => setAccountRef(e.target.value)} />
+                <p className="text-xs text-muted-foreground">You'll receive a USSD push on this number to approve the deposit.</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Amount (USD)</Label>
               <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} min={1} max={10000} />
