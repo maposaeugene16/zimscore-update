@@ -1,0 +1,6 @@
+﻿.env
+.gitignore
+README.md
+package-lock.json
+package.json
+src/integrations/supabase/types.ts
