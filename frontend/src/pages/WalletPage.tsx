@@ -88,17 +88,38 @@ export default function WalletPage() {
   const totalIncome = ledger.filter(t => t.direction === "credit" && !["release_hold"].includes(t.entry_type)).reduce((s, t) => s + Number(t.amount), 0);
   const totalExpenses = ledger.filter(t => t.direction === "debit" && !["hold","escrow"].includes(t.entry_type)).reduce((s, t) => s + Number(t.amount), 0);
 
+  const callEcoCash = async (action: "deposit" | "withdraw", amt: number) => {
+    const { data, error } = await supabase.functions.invoke("ecocash-payment", {
+      body: { action, amount: amt, phone: accountRef },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    return data as { mock?: boolean; reference?: string; message?: string };
+  };
+
   const handleDeposit = async () => {
     const amt = Number(amount);
     if (!amt || amt <= 0) { toast.error("Enter a valid amount"); return; }
     if (amt > 10000) { toast.error("Maximum deposit is $10,000"); return; }
+    if (method === "ecocash" && !accountRef.trim()) { toast.error("Enter your EcoCash phone number"); return; }
     setBusy(true);
-    const { error } = await supabase.rpc("wallet_deposit", { _amount: amt, _method: method, _reference: null });
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`${formatCurrency(amt)} deposited (mock rail)`);
-    setDepositOpen(false); setAmount(""); setAccountRef("");
-    loadAll();
+    try {
+      let reference: string | null = null;
+      if (method === "ecocash") {
+        const eco = await callEcoCash("deposit", amt);
+        reference = eco.reference ?? null;
+        toast.info(eco.message ?? "EcoCash request sent");
+      }
+      const { error } = await supabase.rpc("wallet_deposit", { _amount: amt, _method: method, _reference: reference });
+      if (error) throw new Error(error.message);
+      toast.success(`${formatCurrency(amt)} deposited via ${method}`);
+      setDepositOpen(false); setAmount(""); setAccountRef("");
+      loadAll();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Deposit failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleWithdraw = async () => {
@@ -107,12 +128,21 @@ export default function WalletPage() {
     if (amt > balance) { toast.error(`Insufficient balance: ${formatCurrency(balance)}`); return; }
     if (!accountRef.trim()) { toast.error("Enter destination"); return; }
     setBusy(true);
-    const { error } = await supabase.rpc("wallet_withdraw", { _amount: amt, _method: method, _destination: accountRef });
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`${formatCurrency(amt)} withdrawn (mock rail)`);
-    setWithdrawOpen(false); setAmount(""); setAccountRef("");
-    loadAll();
+    try {
+      if (method === "ecocash") {
+        const eco = await callEcoCash("withdraw", amt);
+        toast.info(eco.message ?? "EcoCash disbursement initiated");
+      }
+      const { error } = await supabase.rpc("wallet_withdraw", { _amount: amt, _method: method, _destination: accountRef });
+      if (error) throw new Error(error.message);
+      toast.success(`${formatCurrency(amt)} withdrawn via ${method}`);
+      setWithdrawOpen(false); setAmount(""); setAccountRef("");
+      loadAll();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Withdrawal failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const toggleFreeze = async () => {
@@ -270,7 +300,7 @@ export default function WalletPage() {
       {/* Deposit */}
       <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Deposit Funds</DialogTitle><DialogDescription>Add money to your ZimScore wallet (mock rail)</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Deposit Funds</DialogTitle><DialogDescription>Add money to your ZimScore wallet</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Payment Method</Label>
@@ -281,6 +311,13 @@ export default function WalletPage() {
                 ))}
               </div>
             </div>
+            {method === "ecocash" && (
+              <div className="space-y-2">
+                <Label>EcoCash Phone Number</Label>
+                <Input placeholder="077X XXX XXXX" value={accountRef} onChange={e => setAccountRef(e.target.value)} />
+                <p className="text-xs text-muted-foreground">You'll receive a USSD push on this number to approve the deposit.</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Amount (USD)</Label>
               <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} min={1} max={10000} />
